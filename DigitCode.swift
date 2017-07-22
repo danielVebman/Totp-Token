@@ -14,8 +14,8 @@
 
 import Foundation
 
-/// A struct that manages getting hotp and totp tokens given an `RFC 4648` compliant `secret`.
-struct DigitCode {
+/// A class that manages getting hotp and totp tokens given an `RFC 4648` compliant `secret`.
+class DigitCode {
     /// Called every 30 seconds to indicate a new totp code. Should be a fraction of a second late. `delegate` should only be used when a `totpToken` is desired.
     var delegate: DigitCodeDelegate? {
         didSet {
