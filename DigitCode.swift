@@ -13,7 +13,6 @@
 */
 
 import Foundation
-import Security
 
 /// A class that manages getting hotp and totp tokens given an RFC 4648 compliant `secret`.
 class DigitCode {
