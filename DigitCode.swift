@@ -6,9 +6,16 @@
 //  Copyright © 2017 Brinklet. All rights reserved.
 //
 
+/*
+    IMPORTANT:
+    Be sure to include a bridging header with the following line in it:
+    #import <CommonCrypto/CommonHMAC.h>
+*/
+
 import Foundation
 import Security
 
+/// A class that manages getting hotp and totp tokens given an RFC 4648 compliant `secret`.
 class DigitCode {
     /// Called every 30 seconds to indicate a new totp code. Should be a fraction of a second late. `delegate` should only be used when a `totpToken` is desired.
     var delegate: DigitCodeDelegate? {
