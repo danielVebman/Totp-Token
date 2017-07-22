@@ -14,8 +14,8 @@
 
 import Foundation
 
-/// A class that manages getting hotp and totp tokens given an RFC 4648 compliant `secret`.
-class DigitCode {
+/// A struct that manages getting hotp and totp tokens given an `RFC 4648` compliant `secret`.
+struct DigitCode {
     /// Called every 30 seconds to indicate a new totp code. Should be a fraction of a second late. `delegate` should only be used when a `totpToken` is desired.
     var delegate: DigitCodeDelegate? {
         didSet {
@@ -156,7 +156,6 @@ class DigitCode {
         }
         
         if let base32Data = processingData.data(using: String.Encoding.ascii, allowLossyConversion: false) {
-            // how much space do we need
             let fullGroups = base32Data.count / 8
             var bytesInPartialGroup: Int = 0
             switch base32Data.count % 8 {
@@ -251,7 +250,8 @@ extension String {
     }
 }
 
+/// The delegate for a DigitCode object.
 protocol DigitCodeDelegate {
-    /// Gets called with an array of 6 digits every 30, seconds just after the true switch to a new totp token. Will return `nil` if the secret could not be decoded.
+    /// Gets called with an array of 6 digits every 30, seconds just after the true switch to a new totp token. Will pass `nil` if the secret could not be decoded.
     func totpTokenDidChange(code: [Int]?)
 }
