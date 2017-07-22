@@ -14,28 +14,41 @@
 
 import Foundation
 
-/// A class that manages getting hotp and totp tokens given an `RFC 4648` compliant `secret`.
-class DigitCode {
-    /// Called every 30 seconds to indicate a new totp code. Should be a fraction of a second late. `delegate` should only be used when a `totpToken` is desired.
+/// A class that manages getting `hotp` and `totp` tokens given an `RFC 4648` compliant `secret`.
+class DigitCode: NSObject {
+    
+    /** 
+    Called every 30 seconds to indicate a new totp code. Will be called a fraction of a second late.
+    
+    Delegate should only be used when a `totpToken` is desired.
+    
+    Delegate method `totpTokenDidChange(code:)` is called immediately after `delegate` is set.
+    */
     var delegate: DigitCodeDelegate? {
         didSet {
             syncTimer()
         }
     }
     
-    /// A 16 byte, RFC 4648 compliant string, which should be kept secret
+    /// A 16 byte, RFC 4648 compliant string, which should be kept secret.
     private(set) var secret = ""
     
-    /// Initialize a `DigitCode` object with an RFC 4648 compliant secret
-    init(secret: String) {
-        if secret.isRFC4648Complaint {
+    /** Initialize a `DigitCode` object with an `RFC 4648` compliant, 16 byte secret.
+    - Parameter secret: an `RFC 4648` compliant, 16 byte secret. If `secret` is invalid, `self` will be equal to `nil`, and an error will be printed to the console. `String.is16RFC4648Compliant` property can be used to determine if this error will occur in advance.
+    */
+    init?(secret: String) {
+        if secret.is16RFC4648Complaint {
             self.secret = secret
         } else {
             print("***", "Error: Secret is not RFC 4648 compliant, so tokens cannot be generated!")
+            return nil
         }
     }
     
-    /// Returns a 6-digit array representing the token given `secret` and `intervals`.
+    /**
+     Returns a 6-digit array representing the token given `secret` and `intervals`.
+     - Parameter intervals: the number of intervals passed.
+    */
     func getHotpToken(intervals: Int) -> [Int]? {
         guard let keyData = Base32Decode(data: secret) else { return nil }
         
@@ -66,27 +79,35 @@ class DigitCode {
     
     /// The 6-digit array representing the token given `secret` and the current time.
     var totpToken: [Int]? {
-        return getHotpToken(intervals: Int(floor(Date().timeIntervalSince1970 / 30)))
+        return totpToken(at: Date())
     }
     
-    /// Syncs the timer to be just behind the true 30 second time cycle.
+    /**
+     The 6-digit array representing the token given `secret` and a date.
+     - Parameter date: the date for which the totp token is requested.
+    */
+    func totpToken(at date: Date) -> [Int]? {
+        return getHotpToken(intervals: Int(floor(date.timeIntervalSince1970 / 30)))
+    }
+    
+    /// Syncs and then starts the timer to be just behind the true 30 second time cycle.
     private func syncTimer() {
-        delegate?.totpTokenDidChange(code: totpToken)
+        if totpToken != nil { delegate?.totpTokenDidChange(code: totpToken!) }
         let wait = 30 - (Date().timeIntervalSince1970).truncatingRemainder(dividingBy: 30) + 0.5
         Timer.scheduledTimer(withTimeInterval: wait, repeats: false) { (_) in
             self.startTimer()
         }
     }
     
-    /// Starts the timer for calling the delegate every 30 seconds.
+    /// Starts the timer for calling `delegate` method `totpTokenDidChange(code:)` every 30 seconds.
     private func startTimer() {
-        self.delegate?.totpTokenDidChange(code: self.totpToken)
+        if totpToken != nil { delegate?.totpTokenDidChange(code: totpToken!) }
         Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { (_) in
-            self.delegate?.totpTokenDidChange(code: self.totpToken)
+            if self.totpToken != nil { self.delegate?.totpTokenDidChange(code: self.totpToken!) }
         }
     }
     
-    /// Uses HMAC to create a hash given the `key` and `data`, which is the `interval`.
+    /// Uses `HMAC` to create a hash given a `key` and `data`.
     private func hmac(key: Data, data: Data) -> Data {
         let hashLength = Int(CC_SHA1_DIGEST_LENGTH)
         let macOut = UnsafeMutablePointer<UInt8>.allocate(capacity: hashLength)
@@ -236,11 +257,42 @@ class DigitCode {
         
         return nil
     }
+    
+    override func isEqual(_ object: Any?) -> Bool {
+        if let otherDigitCode = object as? DigitCode {
+            return secret == otherDigitCode.secret
+        }
+        return false
+    }
+    
+    override var description: String {
+        return "Secret: \(secret), totp: \(DigitCode.formatCode(totpToken ?? [Int]()) ?? "invalid")"
+    }
+    
+    /** Formats a 6 digit code into the form, `000 000`, optionally with a different separator.
+     - Parameters:
+        - code: an `Int` array of length 6.
+        - separator: optionally a separator to go between the two halves.
+            The default separator is a single space.
+    */
+    static func formatCode(_ code: [Int], separator: String = " ") -> String? {
+        if code.count != 6 { return nil }
+        let left = code[0...2].map { String($0) }.joined()
+        let right = code[3...5].map { String($0) }.joined()
+        return left + separator + right
+    }
+    
+    struct Code {
+        private(set) var intArray = [Int]()
+        init(intArray: [Int]) {
+            
+        }
+    }
 }
 
 extension String {
-    /// Returns if a secret is `RFC 4648` compliant
-    var isRFC4648Complaint: Bool {
+    /// A Boolean value that determines whether a secret is `RFC 4648` compliant
+    var is16RFC4648Complaint: Bool {
         var charactersValid = true
         let validCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
         characters.forEach {
@@ -252,6 +304,8 @@ extension String {
 
 /// The delegate for a DigitCode object.
 protocol DigitCodeDelegate {
-    /// Gets called with an array of 6 digits every 30, seconds just after the true switch to a new totp token. Will pass `nil` if the secret could not be decoded.
-    func totpTokenDidChange(code: [Int]?)
+    /** Gets called with an array of 6 digits every 30 seconds, just after the true switch to a new totp token.
+     - Parameter code: A 6 digit Int array representing the current totp token.
+    */
+    func totpTokenDidChange(code: [Int])
 }
