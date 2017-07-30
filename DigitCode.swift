@@ -281,13 +281,6 @@ class DigitCode: NSObject {
         let right = code[3...5].map { String($0) }.joined()
         return left + separator + right
     }
-    
-    struct Code {
-        private(set) var intArray = [Int]()
-        init(intArray: [Int]) {
-            
-        }
-    }
 }
 
 extension String {
